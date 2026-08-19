@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { canManageBilling } from "@/lib/rbac";
 
 const ACTIVE_EVENT_STATUSES = [
   "published",
@@ -54,6 +55,7 @@ export default async function DashboardPage() {
   if (profile?.role === "official") redirect("/events");
 
   const isAdmin = profile?.role === "super_admin" || profile?.role === "admin_event";
+  const canSeeBilling = canManageBilling(profile?.role);
   const clubId = profile?.club_id ?? "00000000-0000-0000-0000-000000000000";
 
   const { data: events } = await supabase
@@ -82,17 +84,23 @@ export default async function DashboardPage() {
         .eq("club_id", clubId),
     ]);
 
-    const { data: invoices } = await supabase
-      .from("invoices")
-      .select("status, total")
-      .eq("club_id", clubId);
+    let paid: { status: string; total: number }[] = [];
+    let outstanding: { status: string; total: number }[] = [];
+    let totalPaid = 0;
+    let totalOutstanding = 0;
+    if (canSeeBilling) {
+      const { data: invoices } = await supabase
+        .from("invoices")
+        .select("status, total")
+        .eq("club_id", clubId);
 
-    const paid = (invoices ?? []).filter((i) => i.status === "paid");
-    const outstanding = (invoices ?? []).filter(
-      (i) => i.status === "awaiting_payment" || i.status === "draft"
-    );
-    const totalPaid = paid.reduce((s, i) => s + Number(i.total), 0);
-    const totalOutstanding = outstanding.reduce((s, i) => s + Number(i.total), 0);
+      paid = (invoices ?? []).filter((i) => i.status === "paid");
+      outstanding = (invoices ?? []).filter(
+        (i) => i.status === "awaiting_payment" || i.status === "draft"
+      );
+      totalPaid = paid.reduce((s, i) => s + Number(i.total), 0);
+      totalOutstanding = outstanding.reduce((s, i) => s + Number(i.total), 0);
+    }
 
     return (
       <div className="space-y-8">
@@ -109,22 +117,26 @@ export default async function DashboardPage() {
             <StatCard label="Total Atlet" value={athleteCount ?? 0} />
             <StatCard label="Total Registrasi" value={registrationCount ?? 0} />
             <StatCard label="Total Nomor Diikuti" value={numberCount ?? 0} />
-            <StatCard
-              label="Tagihan Club"
-              value={rupiah(totalPaid + totalOutstanding)}
-            />
+            {canSeeBilling && (
+              <StatCard
+                label="Tagihan Club"
+                value={rupiah(totalPaid + totalOutstanding)}
+              />
+            )}
           </div>
         </section>
 
-        <section>
-          <SectionTitle>Pembayaran</SectionTitle>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <StatCard label="Uang Masuk" value={rupiah(totalPaid)} />
-            <StatCard label="Outstanding Payment" value={rupiah(totalOutstanding)} />
-            <StatCard label="Invoice Lunas" value={paid.length} />
-            <StatCard label="Invoice Menunggu" value={outstanding.length} />
-          </div>
-        </section>
+        {canSeeBilling && (
+          <section>
+            <SectionTitle>Pembayaran</SectionTitle>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <StatCard label="Uang Masuk" value={rupiah(totalPaid)} />
+              <StatCard label="Outstanding Payment" value={rupiah(totalOutstanding)} />
+              <StatCard label="Invoice Lunas" value={paid.length} />
+              <StatCard label="Invoice Menunggu" value={outstanding.length} />
+            </div>
+          </section>
+        )}
 
         <section>
           <SectionTitle>Jadwal Event</SectionTitle>

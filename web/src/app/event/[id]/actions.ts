@@ -325,10 +325,11 @@ export async function createAuthenticatedRegistration(formData: FormData) {
   try {
     await requireOpenEvent(admin, eventId);
     const { data: profile } = await admin.from("profiles").select("role, club_id, athlete_id").eq("id", user.id).single();
-    if (!profile || !["club_manager", "peserta"].includes(profile.role)) throw new Error("Akun ini tidak bisa mendaftar sebagai club atau atlet.");
+    if (!profile || !["club_manager", "club_coach", "peserta"].includes(profile.role)) throw new Error("Akun ini tidak bisa mendaftar sebagai club atau atlet.");
+    const isClubAccount = profile.role === "club_manager" || profile.role === "club_coach";
 
     let athleteId = profile.role === "peserta" ? profile.athlete_id : selectedAthleteId;
-    if (profile.role === "club_manager" && newAthleteName) {
+    if (isClubAccount && newAthleteName) {
       if (!newAthleteGender) throw new Error("Pilih jenis kelamin atlet baru.");
       const { data: newAthlete, error: newAthleteError } = await admin
         .from("athletes")
@@ -342,7 +343,7 @@ export async function createAuthenticatedRegistration(formData: FormData) {
     if (!athleteId) throw new Error("Pilih atlet terlebih dahulu atau isi data atlet baru.");
 
     const { data: athlete } = await admin.from("athletes").select("club_id").eq("id", athleteId).single();
-    if (!athlete || (profile.role === "club_manager" && athlete.club_id !== profile.club_id)) throw new Error("Atlet tidak terhubung ke akun ini.");
+    if (!athlete || (isClubAccount && athlete.club_id !== profile.club_id)) throw new Error("Atlet tidak terhubung ke akun ini.");
 
     const entries = await validateEntries(admin, eventId, athleteId, eventNumberIds);
     const { data: registrations, error: registrationError } = await admin

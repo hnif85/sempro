@@ -1,0 +1,21 @@
+# dependencies
+node_modules/
+
+# next.js build
+.next/
+out/
+
+# env / secrets
+.env*
+.env.local
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# stray root package-lock (real one is in web/)
+/package-lock.json
+
+# misc
+.DS_Store
+*.log

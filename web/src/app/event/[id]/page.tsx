@@ -1,7 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { AppShell } from "@/components/AppShell";
 
 type PdfDocument = { id: string; url: string; caption: string | null; file_name: string | null; viewUrl: string };
 
@@ -24,6 +26,21 @@ async function viewableUrl(admin: Awaited<ReturnType<typeof createAdminClient>>,
   return error ? url : data.signedUrl;
 }
 
+function SiteHeader({ user }: { user: { email?: string } | null }) {
+  return (
+    <header className="border-b border-zinc-200 bg-white">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
+        <Link href="/" className="text-sm font-bold text-primary">SWIM EVENT</Link>
+        {user ? (
+          <Link href="/dashboard" className="text-sm text-zinc-600 hover:text-primary">Dashboard</Link>
+        ) : (
+          <Link href="/login" className="text-sm text-zinc-600 hover:text-primary">Login</Link>
+        )}
+      </div>
+    </header>
+  );
+}
+
 function GuidePanel({ documents, eventName }: { documents: PdfDocument[]; eventName: string }) {
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm lg:sticky lg:top-6">
@@ -36,6 +53,13 @@ function GuidePanel({ documents, eventName }: { documents: PdfDocument[]; eventN
 export default async function PublicEventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const admin = await createAdminClient();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("full_name").eq("id", user.id).single()
+    : { data: null };
   const { data: event } = await admin.from("events").select("id, name, description, banner_url, logo_url, pdf_url, location, organizer, start_date, end_date, status, category, class_name, lanes_count, heats_per_number, event_numbers(id, name, fee, gender, age_categories(name), swimming_styles(name), distances(meters))").eq("id", id).single();
   if (!event) notFound();
 
@@ -48,11 +72,13 @@ export default async function PublicEventPage({ params }: { params: Promise<{ id
     ...(eventDocs ?? []),
   ].map(async (document) => ({ ...document, viewUrl: (await viewableUrl(admin, document.url)) ?? document.url })));
 
-  return (
+  const backLink = user ? `/dashboard` : "/#events";
+
+  const content = (
     <main className="min-h-screen bg-zinc-50 text-zinc-900">
-      <header className="border-b border-zinc-200 bg-white"><div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4"><Link href="/" className="text-sm font-bold text-primary">SWIM EVENT</Link><Link href="/login" className="text-sm text-zinc-600 hover:text-primary">Login</Link></div></header>
+      {!user && <SiteHeader user={null} />}
       <div className="mx-auto max-w-[1500px] space-y-5 px-5 py-6">
-        <Link href="/#events" className="text-sm text-primary hover:underline">← Kembali ke daftar event</Link>
+        <Link href={backLink} className="text-sm text-primary hover:underline">← Kembali ke daftar event</Link>
 
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_560px]">
           <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
@@ -76,4 +102,9 @@ export default async function PublicEventPage({ params }: { params: Promise<{ id
       </div>
     </main>
   );
+
+  if (user) {
+    return <AppShell fullName={profile?.full_name ?? "User"}>{content}</AppShell>;
+  }
+  return content;
 }

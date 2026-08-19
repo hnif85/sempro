@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createUser, deactivateUser, activateUser, resetPassword } from "./actions";
+import { ALL_ROLES, ROLE_LABELS, roleLabel } from "@/lib/rbac";
 
 export default async function UsersPage() {
   const supabase = await createClient();
@@ -35,7 +36,7 @@ export default async function UsersPage() {
     clubs: { name: string | null }[] | null;
   }[];
 
-  const roles = ["super_admin", "admin_event", "club_manager", "official", "peserta"];
+  const roles = ALL_ROLES;
 
   return (
     <div className="space-y-6">
@@ -80,8 +81,8 @@ export default async function UsersPage() {
               className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm capitalize focus:border-primary focus:outline-none"
             >
               {roles.map((r) => (
-                <option key={r} value={r} className="capitalize">
-                  {r.replace("_", " ")}
+                <option key={r} value={r}>
+                  {ROLE_LABELS[r]}
                 </option>
               ))}
             </select>
@@ -140,8 +141,8 @@ export default async function UsersPage() {
               <tr key={u.id} className="hover:bg-zinc-50">
                 <td className="px-4 py-3 font-medium">{u.full_name ?? "-"}</td>
                 <td className="px-4 py-3">
-                  <span className="inline-flex rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium capitalize">
-                    {u.role.replace("_", " ")}
+                  <span className="inline-flex rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium">
+                    {roleLabel(u.role)}
                   </span>
                 </td>
                 <td className="px-4 py-3">{u.clubs?.name ?? "-"}</td>

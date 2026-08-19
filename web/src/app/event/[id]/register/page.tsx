@@ -64,7 +64,7 @@ export default async function PublicRegistrationPage({
   let athletes: { id: string; name: string; gender: string | null; birth_date: string | null }[] = [];
   let ownAthlete: { id: string; name: string; gender: string | null; birth_date: string | null } | null = null;
 
-  if (profile?.role === "club_manager" && profile.club_id) {
+  if ((profile?.role === "club_manager" || profile?.role === "club_coach") && profile.club_id) {
     const [{ data: clubData }, { data: athleteData }] = await Promise.all([
       admin.from("clubs").select("name, pic_name").eq("id", profile.club_id).single(),
       admin.from("athletes").select("id, name, gender, birth_date").eq("club_id", profile.club_id).order("name"),
@@ -77,7 +77,8 @@ export default async function PublicRegistrationPage({
     ownAthlete = data;
   }
 
-  const authenticatedRole = profile?.role === "club_manager" || profile?.role === "peserta" ? profile.role : null;
+  const authenticatedRole = profile?.role === "club_manager" || profile?.role === "club_coach" || profile?.role === "peserta" ? profile.role : null;
+  const isClubAccount = authenticatedRole === "club_manager" || authenticatedRole === "club_coach";
   const open = event.status === "registration_open";
 
   return (
@@ -118,9 +119,16 @@ export default async function PublicRegistrationPage({
               {authenticatedRole && (
                 <form action={createAuthenticatedRegistration} className="space-y-5 rounded-2xl border border-zinc-200 bg-white p-6 md:p-8">
             <input type="hidden" name="event_id" value={id} />
-            <div><h2 className="text-lg font-semibold">Data otomatis terisi</h2><p className="mt-1 text-sm text-zinc-500">Akun {user?.email} akan digunakan untuk pendaftaran dan pembayaran.</p></div>
-            <div className="rounded-lg bg-zinc-50 p-4 text-sm">{authenticatedRole === "club_manager" ? <><p className="font-medium">Club: {club?.name ?? "-"}</p><p className="mt-1 text-zinc-500">Pilih atlet lama atau isi bagian atlet baru.</p></> : <><p className="font-medium">Atlet: {ownAthlete?.name ?? "-"}</p><p className="mt-1 text-zinc-500">Data atlet diambil dari profil akun.</p></>}</div>
-            {authenticatedRole === "club_manager" ? <><div><label className="mb-1 block text-sm font-medium">Atlet yang sudah ada</label><select name="athlete_id" className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"><option value="">Pilih atlet lama...</option>{athletes.map((athlete) => <option key={athlete.id} value={athlete.id}>{athlete.name} ({athlete.gender ?? "-"})</option>)}</select></div><div className="border-t border-zinc-100 pt-5"><h3 className="font-semibold">Tambah Atlet Baru</h3><p className="mt-1 text-sm text-zinc-500">Isi bagian ini jika atlet belum ada di daftar club. Jika diisi, atlet baru akan langsung disimpan.</p><div className="mt-3 grid gap-4 md:grid-cols-3"><div><label className="mb-1 block text-sm font-medium">Nama Atlet Baru</label><input name="new_athlete_name" className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm" /></div><div><label className="mb-1 block text-sm font-medium">Jenis Kelamin</label><select name="new_athlete_gender" className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"><option value="">Pilih...</option><option value="putra">Putra</option><option value="putri">Putri</option></select></div><div><label className="mb-1 block text-sm font-medium">Tanggal Lahir</label><input name="new_athlete_birth_date" type="date" className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm" /></div></div></div></> : <input type="hidden" name="athlete_id" value={ownAthlete?.id ?? ""} />}
+            {isClubAccount ? (
+              <>
+                <div><h2 className="text-lg font-semibold">Data otomatis terisi</h2><p className="mt-1 text-sm text-zinc-500">Akun {user?.email} akan digunakan untuk pendaftaran dan pembayaran.</p></div>
+                <div className="rounded-lg bg-zinc-50 p-4 text-sm"><p className="font-medium">Club: {club?.name ?? "-"}</p><p className="mt-1 text-zinc-500">Pilih atlet lama atau isi bagian atlet baru.</p></div>
+                <div><label className="mb-1 block text-sm font-medium">Atlet yang sudah ada</label><select name="athlete_id" className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"><option value="">Pilih atlet lama...</option>{athletes.map((athlete) => <option key={athlete.id} value={athlete.id}>{athlete.name} ({athlete.gender ?? "-"})</option>)}</select></div>
+                <div className="border-t border-zinc-100 pt-5"><h3 className="font-semibold">Tambah Atlet Baru</h3><p className="mt-1 text-sm text-zinc-500">Isi bagian ini jika atlet belum ada di daftar club. Jika diisi, atlet baru akan langsung disimpan.</p><div className="mt-3 grid gap-4 md:grid-cols-3"><div><label className="mb-1 block text-sm font-medium">Nama Atlet Baru</label><input name="new_athlete_name" className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm" /></div><div><label className="mb-1 block text-sm font-medium">Jenis Kelamin</label><select name="new_athlete_gender" className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"><option value="">Pilih...</option><option value="putra">Putra</option><option value="putri">Putri</option></select></div><div><label className="mb-1 block text-sm font-medium">Tanggal Lahir</label><input name="new_athlete_birth_date" type="date" className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm" /></div></div></div>
+              </>
+            ) : (
+              <input type="hidden" name="athlete_id" value={ownAthlete?.id ?? ""} />
+            )}
             <div className="border-t border-zinc-100 pt-5"><h3 className="font-semibold">Pilih Nomor Lomba</h3><p className="mt-1 text-sm text-zinc-500">Bisa memilih beberapa nomor untuk atlet ini.</p><div className="mt-3"><NumberChoices numbers={numbers} /></div></div>
             <button className="rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-white">Lanjut ke Pembayaran</button>
                 </form>

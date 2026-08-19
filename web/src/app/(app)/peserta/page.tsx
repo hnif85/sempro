@@ -1,6 +1,7 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { registerPeserta } from "./actions";
+import Link from "next/link";
+import { loadPesertaData } from "@/lib/peserta-data";
+import { Icon, MetricCard, SectionHeading, SuccessMessage, DesktopStat, NoAthleteNotice, medalEmoji } from "@/components/peserta/ui";
+import { BottomNav } from "@/components/peserta/bottom-nav";
 
 export default async function PesertaPage({
   searchParams,
@@ -8,212 +9,159 @@ export default async function PesertaPage({
   searchParams: Promise<{ registered?: string }>;
 }) {
   const sp = await searchParams;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const data = await loadPesertaData();
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*, athletes(*, clubs(name))")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "peserta") redirect("/dashboard");
-
-  const athleteId = profile.athlete_id;
-
-  if (!athleteId) {
-    return (
-      <div className="mx-auto max-w-lg">
-        <h1 className="text-2xl font-semibold">Profil Peserta</h1>
-        <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-700">
-          Akun ini belum terhubung ke data atlet. Hubungi panitia untuk
-          menghubungkan akun Anda dengan data atlet.
-        </p>
-      </div>
-    );
+  if (!data.athleteId) {
+    return <NoAthleteNotice />;
   }
 
-  const { data: results } = await supabase
-    .from("athlete_results")
-    .select("*")
-    .eq("athlete_id", athleteId)
-    .order("result_time");
-
-  const { data: openEvents } = await supabase
-    .from("events")
-    .select("*, event_numbers(id, name, fee)")
-    .eq("status", "registration_open")
-    .order("start_date");
-
-  const openEventsList = (openEvents ?? []) as unknown as {
-    id: string;
-    name: string;
-    start_date: string | null;
-    location: string | null;
-    event_numbers: { id: string; name: string; fee: number | null }[] | null;
-  }[];
-
-  const pbByNumber = new Map<string, NonNullable<typeof results>>();
-  for (const r of results ?? []) {
-    const key = r.number_name ?? "?";
-    if (!pbByNumber.has(key)) pbByNumber.set(key, []);
-    pbByNumber.get(key)!.push(r);
-  }
-  const pbs = Array.from(pbByNumber.entries()).map(([name, list]) => ({
-    name,
-    list,
-  }));
-  const totalMedals = results?.filter((r) => r.place && r.place <= 3).length ?? 0;
-  const totalEvents = new Set((results ?? []).map((r) => r.event_id)).size;
-
-  const athlete = profile.athletes;
+  const { profile, pbs, best, totalMedals, totalEvents, totalNumbers, openEvents, achievements } = data;
+  const clubName = profile?.clubs?.name ?? "-";
+  const genderLabel = profile?.gender === "putri" ? "Putri" : profile?.gender === "putra" ? "Putra" : "-";
+  const nearestEvent = openEvents[0];
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Halo, {athlete?.name ?? profile.full_name}</h1>
-        <p className="text-zinc-500">
-          {athlete?.clubs?.name ?? "-"} ·{" "}
-          {athlete?.gender ? <span className="capitalize">{athlete.gender}</span> : "-"} ·{" "}
-          {athlete?.birth_date ?? "-"}
-        </p>
+    <>
+      <div className="-mx-4 -mt-4 min-h-screen bg-[#f5f8ff] pb-28 md:hidden">
+        <div className="text-[#102353]">
+          <section
+            className="relative overflow-hidden rounded-b-[2rem] bg-[#d9efff] bg-cover bg-[position:68%_center]"
+            style={{
+              backgroundImage: "linear-gradient(90deg, rgba(255,255,255,.95) 0%, rgba(255,255,255,.7) 40%, rgba(255,255,255,.05) 80%), url('/hero-putri-mobile.png.png')",
+            }}
+          >
+            {sp.registered && <div className="relative z-10 mx-4 mt-4"><SuccessMessage /></div>}
+
+            <section className="relative z-10 mx-4 mt-4 grid grid-cols-2 gap-3 pb-6">
+              <div className="flex items-center gap-3 rounded-2xl border border-white/40 bg-white/60 p-4 shadow-[0_8px_24px_rgba(28,74,137,.05)] backdrop-blur-sm">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50"><Icon name="medal" className="h-5 w-5 text-amber-500" /></div>
+                <div className="min-w-0">
+                  <p className="text-xs text-slate-500">Ranking Klub</p>
+                  <p className="truncate text-lg font-bold">—</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-2xl border border-white/40 bg-white/60 p-4 shadow-[0_8px_24px_rgba(28,74,137,.05)] backdrop-blur-sm">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50"><Icon name="swim" className="h-5 w-5 text-blue-600" /></div>
+                <div className="min-w-0">
+                  <p className="text-xs text-slate-500">Personal Best</p>
+                  <p className="truncate text-lg font-bold">{best?.result_time ?? "—"}</p>
+                </div>
+              </div>
+            </section>
+          </section>
+
+          <div className="space-y-5 px-4 pt-5">
+            <section className="grid grid-cols-2 gap-3">
+              <MetricCard icon="stopwatch" label="PB Aktif" value={pbs.length} detail="Nomor" tone="blue" />
+              <MetricCard icon="medal" label="Medali" value={totalMedals} detail="Total" tone="green" />
+              <MetricCard icon="calendar" label="Event" value={totalEvents} detail="Tahun ini" tone="purple" />
+              <MetricCard icon="trophy" label="Ranking Klub" value="—" detail="Belum tersedia" tone="orange" />
+            </section>
+
+            <section className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_24px_rgba(28,74,137,.05)]">
+              <SectionHeading icon="calendar" title="Event Terdekat" action="Lihat Semua" actionHref="/peserta/event" />
+              {nearestEvent ? (
+                <Link href={`/event/${nearestEvent.id}`} className="flex items-start gap-3 p-4 transition-colors active:bg-slate-50">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#06285f] to-[#0c55b8] text-center text-[9px] font-bold leading-tight text-white">SEMP<br />OPEN</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-base font-bold">{nearestEvent.name}</p>
+                    <p className="mt-1 text-sm text-slate-500">{nearestEvent.start_date ?? "Tanggal menyusul"}</p>
+                    <p className="truncate text-sm text-slate-500">{nearestEvent.location ?? "Lokasi menyusul"}</p>
+                  </div>
+                  <span className="shrink-0 text-xl text-slate-400">›</span>
+                </Link>
+              ) : (
+                <div className="p-6 text-center">
+                  <p className="text-3xl">🏊</p>
+                  <p className="mt-2 text-sm font-semibold">Belum ada event</p>
+                  <p className="mt-1 text-xs text-slate-500">Tidak ada event yang dibuka pendaftarannya saat ini.</p>
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_24px_rgba(28,74,137,.05)]">
+              <SectionHeading icon="trophy" title="Prestasi" action="Lihat Semua" actionHref="/peserta/prestasi" />
+              <div className="divide-y divide-slate-100 px-4">
+                {achievements.slice(0, 5).map((achievement, index) => (
+                  <div key={`${achievement.event_id}-${achievement.number_name}-${index}`} className="flex items-center gap-3 py-3">
+                    <span className="text-2xl">{medalEmoji(achievement.place)}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold">Juara {achievement.place}</p>
+                      <p className="truncate text-xs text-slate-500">{achievement.event_name ?? "Event"}</p>
+                    </div>
+                    <p className="shrink-0 text-xs text-slate-400">{achievement.number_name}</p>
+                  </div>
+                ))}
+                {achievements.length === 0 && (
+                  <p className="py-8 text-center text-sm text-slate-400">Belum ada prestasi. Ayo raih medali pertamamu!</p>
+                )}
+              </div>
+            </section>
+          </div>
+        </div>
       </div>
 
-      {sp.registered && (
-        <p className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
-          Pendaftaran berhasil diajukan. Menunggu verifikasi panitia.
-        </p>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border border-zinc-200 bg-white p-5">
-          <p className="text-sm text-zinc-500">Total Event</p>
-          <p className="mt-1 text-2xl font-semibold">{totalEvents}</p>
-        </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-5">
-          <p className="text-sm text-zinc-500">Total Nomor</p>
-          <p className="mt-1 text-2xl font-semibold">
-            {new Set((results ?? []).map((r) => r.number_name)).size}
+      <div className="hidden space-y-8 md:block">
+        <div>
+          <h1 className="text-2xl font-semibold">Halo, {profile?.full_name ?? "Atlet"}</h1>
+          <p className="text-zinc-500">
+            {clubName} · {genderLabel} · {profile?.birth_date ?? "-"}
           </p>
         </div>
-        <div className="rounded-xl border border-amber-100 bg-amber-50 p-5">
-          <p className="text-sm text-amber-700">Total Medali</p>
-          <p className="mt-1 text-2xl font-semibold text-amber-800">{totalMedals}</p>
-        </div>
-      </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-white">
-        <div className="border-b border-zinc-100 px-6 py-4">
-          <h2 className="text-base font-semibold">Personal Best</h2>
+        {sp.registered && <SuccessMessage />}
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <DesktopStat label="Total Event" value={totalEvents} />
+          <DesktopStat label="Total Nomor" value={totalNumbers} />
+          <DesktopStat label="Total Medali" value={totalMedals} accent />
         </div>
-        <table className="w-full text-sm">
-          <thead className="border-b border-zinc-100 bg-zinc-50 text-left">
-            <tr>
-              <th className="px-6 py-3 font-medium">Nomor</th>
-              <th className="px-6 py-3 font-medium">Waktu Terbaik</th>
-              <th className="px-6 py-3 font-medium">Event</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-50">
-            {pbs.map((pb) => (
-              <tr key={pb.name}>
-                <td className="px-6 py-3 font-medium">{pb.name}</td>
-                <td className="px-6 py-3">{pb.list[0]?.result_time}</td>
-                <td className="px-6 py-3 text-zinc-500">{pb.list[0]?.event_name}</td>
-              </tr>
-            ))}
-            {pbs.length === 0 && (
-              <tr>
-                <td colSpan={3} className="px-6 py-8 text-center text-zinc-400">
-                  Belum ada hasil tercatat.
-                </td>
-              </tr>
+
+        <section className="rounded-xl border border-zinc-200 bg-white">
+          <div className="flex items-center justify-between border-b border-zinc-100 px-6 py-4">
+            <h2 className="text-base font-semibold">Event Terdekat</h2>
+            <Link href="/peserta/event" className="text-sm text-primary hover:underline">Lihat Semua</Link>
+          </div>
+          <div className="p-6">
+            {nearestEvent ? (
+              <Link href={`/event/${nearestEvent.id}`} className="flex items-center gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#06285f] to-[#0c55b8] text-center text-[10px] font-bold leading-tight text-white">SEMP</div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">{nearestEvent.name}</p>
+                  <p className="text-sm text-zinc-500">{nearestEvent.start_date ?? "-"} · {nearestEvent.location ?? "-"}</p>
+                </div>
+                <span className="text-zinc-400">›</span>
+              </Link>
+            ) : (
+              <p className="text-center text-sm text-zinc-400">Belum ada event yang dibuka pendaftarannya.</p>
             )}
-          </tbody>
-        </table>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-zinc-200 bg-white">
+          <div className="flex items-center justify-between border-b border-zinc-100 px-6 py-4">
+            <h2 className="text-base font-semibold">Prestasi</h2>
+            <Link href="/peserta/prestasi" className="text-sm text-primary hover:underline">Lihat Semua</Link>
+          </div>
+          <div className="divide-y divide-zinc-100">
+            {achievements.slice(0, 5).map((achievement, index) => (
+              <div key={`${achievement.event_id}-${achievement.number_name}-${index}`} className="flex items-center justify-between px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{medalEmoji(achievement.place)}</span>
+                  <div>
+                    <p className="font-medium">Juara {achievement.place}</p>
+                    <p className="text-sm text-zinc-500">{achievement.event_name}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-zinc-500">{achievement.number_name}</p>
+              </div>
+            ))}
+            {achievements.length === 0 && <p className="px-6 py-8 text-center text-zinc-400">Belum ada prestasi.</p>}
+          </div>
+        </section>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-white">
-        <div className="border-b border-zinc-100 px-6 py-4">
-          <h2 className="text-base font-semibold">Riwayat Lomba</h2>
-        </div>
-        <div className="divide-y divide-zinc-100">
-          {(results ?? []).map((r, i) => (
-            <div key={i} className="flex items-center justify-between px-6 py-4">
-              <div>
-                <p className="font-medium">{r.number_name}</p>
-                <p className="text-sm text-zinc-500">{r.event_name}</p>
-              </div>
-              <div className="text-right">
-                <p className="font-medium">{r.result_time}</p>
-                <p className="text-sm text-zinc-500">{r.place ? `Juara ${r.place}` : "-"}</p>
-              </div>
-            </div>
-          ))}
-          {(results ?? []).length === 0 && (
-            <p className="px-6 py-8 text-center text-zinc-400">Belum ada riwayat lomba.</p>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-zinc-200 bg-white">
-        <div className="border-b border-zinc-100 px-6 py-4">
-          <h2 className="text-base font-semibold">Event Terbuka — Daftar</h2>
-        </div>
-        <div className="space-y-4 p-6">
-          {openEventsList.map((event) => (
-            <div key={event.id} className="rounded-lg border border-zinc-100 p-4">
-              <p className="font-semibold">{event.name}</p>
-              <p className="text-sm text-zinc-500">
-                {event.start_date ?? "-"} · {event.location ?? "-"}
-              </p>
-              <form action={registerPeserta} className="mt-4 flex flex-wrap items-end gap-3">
-                <input type="hidden" name="event_id" value={event.id} />
-                <div className="min-w-[200px] flex-1">
-                  <label className="mb-1 block text-xs font-medium text-zinc-500">
-                    Nomor Lomba
-                  </label>
-                  <select
-                    name="event_number_id"
-                    required
-                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                  >
-                    <option value="">Pilih nomor…</option>
-                    {(event.event_numbers ?? []).map((n) => (
-                      <option key={n.id} value={n.id}>
-                        {n.name}
-                        {Number(n.fee) > 0 ? ` — Rp ${Number(n.fee).toLocaleString("id-ID")}` : " (Gratis)"}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="w-32">
-                  <label className="mb-1 block text-xs font-medium text-zinc-500">
-                    Seed Time (opsional)
-                  </label>
-                  <input
-                    name="seed_time"
-                    placeholder="00:32.10"
-                    className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-white hover:bg-primary-dark"
-                >
-                  Daftar
-                </button>
-              </form>
-            </div>
-          ))}
-          {openEventsList.length === 0 && (
-            <p className="text-sm text-zinc-400">Belum ada event yang dibuka pendaftarannya.</p>
-          )}
-        </div>
-      </div>
-    </div>
+      <BottomNav />
+    </>
   );
 }
