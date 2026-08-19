@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileForm } from "./profile-form";
-import { BottomNav } from "@/components/peserta/bottom-nav";
 
 type ProfileData = {
   id: string;
@@ -59,8 +58,6 @@ export default async function ProfilePage() {
           </div>
         </div>
       </div>
-
-      <BottomNav />
     </div>
   );
 }

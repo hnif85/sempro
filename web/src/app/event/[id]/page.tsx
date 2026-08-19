@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AppShell } from "@/components/AppShell";
+import { BottomNav } from "@/components/peserta/bottom-nav";
 
 type PdfDocument = { id: string; url: string; caption: string | null; file_name: string | null; viewUrl: string };
 
@@ -58,7 +59,7 @@ export default async function PublicEventPage({ params }: { params: Promise<{ id
     data: { user },
   } = await supabase.auth.getUser();
   const { data: profile } = user
-    ? await supabase.from("profiles").select("full_name").eq("id", user.id).single()
+    ? await supabase.from("profiles").select("full_name, role").eq("id", user.id).single()
     : { data: null };
   const { data: event } = await admin.from("events").select("id, name, description, banner_url, logo_url, pdf_url, location, organizer, start_date, end_date, status, category, class_name, lanes_count, heats_per_number, event_numbers(id, name, fee, gender, age_categories(name), swimming_styles(name), distances(meters))").eq("id", id).single();
   if (!event) notFound();
@@ -104,7 +105,14 @@ export default async function PublicEventPage({ params }: { params: Promise<{ id
   );
 
   if (user) {
-    return <AppShell fullName={profile?.full_name ?? "User"}>{content}</AppShell>;
+    return (
+      <AppShell
+        fullName={profile?.full_name ?? "User"}
+        bottomNav={profile?.role === "peserta" ? <BottomNav /> : undefined}
+      >
+        {content}
+      </AppShell>
+    );
   }
   return content;
 }

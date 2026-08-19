@@ -1,6 +1,5 @@
 import { loadPesertaData } from "@/lib/peserta-data";
 import { Icon, SectionHeading, ProgressGraphic, DesktopResults, NoAthleteNotice } from "@/components/peserta/ui";
-import { BottomNav } from "@/components/peserta/bottom-nav";
 
 export default async function PesertaHasilPage() {
   const data = await loadPesertaData();
@@ -64,8 +63,6 @@ export default async function PesertaHasilPage() {
         <h1 className="text-2xl font-semibold">Hasil</h1>
         <DesktopResults pbs={pbs} results={results} />
       </div>
-
-      <BottomNav />
     </>
   );
 }

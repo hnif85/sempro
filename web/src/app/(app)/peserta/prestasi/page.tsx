@@ -1,6 +1,5 @@
 import { loadPesertaData } from "@/lib/peserta-data";
 import { Icon, SectionHeading, NoAthleteNotice, medalEmoji } from "@/components/peserta/ui";
-import { BottomNav } from "@/components/peserta/bottom-nav";
 
 export default async function PesertaPrestasiPage() {
   const data = await loadPesertaData();
@@ -56,8 +55,6 @@ export default async function PesertaPrestasiPage() {
           </div>
         </div>
       </div>
-
-      <BottomNav />
     </>
   );
 }

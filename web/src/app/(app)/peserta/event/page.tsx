@@ -1,6 +1,5 @@
 import { loadPesertaData, type ParticipantEvent } from "@/lib/peserta-data";
 import { Icon, NoAthleteNotice } from "@/components/peserta/ui";
-import { BottomNav } from "@/components/peserta/bottom-nav";
 import { registerPeserta } from "../actions";
 
 function RegistrationForm({ event, compact = false }: { event: ParticipantEvent; compact?: boolean }) {
@@ -103,7 +102,6 @@ export default async function PesertaEventPage() {
         </section>
       </div>
 
-      <BottomNav />
     </>
   );
 }

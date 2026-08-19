@@ -16,10 +16,12 @@ function AvatarIcon({ name }: { name: string }) {
 export function AppShell({
   fullName,
   profileHref,
+  bottomNav,
   children,
 }: {
   fullName: string;
   profileHref?: string;
+  bottomNav?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -84,7 +86,8 @@ export function AppShell({
           )}
         </div>
       </header>
-      <main className="p-4 md:p-8">{children}</main>
+      <main className={`p-4 md:p-8 ${bottomNav ? "pb-24 md:pb-8" : ""}`}>{children}</main>
+      {bottomNav}
     </div>
   );
 }

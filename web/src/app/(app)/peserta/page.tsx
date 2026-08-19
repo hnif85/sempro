@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { loadPesertaData } from "@/lib/peserta-data";
 import { Icon, MetricCard, SectionHeading, SuccessMessage, DesktopStat, NoAthleteNotice, medalEmoji } from "@/components/peserta/ui";
-import { BottomNav } from "@/components/peserta/bottom-nav";
 
 export default async function PesertaPage({
   searchParams,
@@ -161,7 +160,6 @@ export default async function PesertaPage({
         </section>
       </div>
 
-      <BottomNav />
     </>
   );
 }
