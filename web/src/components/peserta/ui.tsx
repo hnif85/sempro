@@ -9,7 +9,11 @@ export type IconName =
   | "stopwatch"
   | "trophy"
   | "user"
-  | "bell";
+  | "bell"
+  | "home"
+  | "users"
+  | "dollar"
+  | "file";
 
 export function Icon({ name, className = "h-6 w-6" }: { name: IconName; className?: string }) {
   const common = {
@@ -80,6 +84,35 @@ export function Icon({ name, className = "h-6 w-6" }: { name: IconName; classNam
       return (
         <svg {...common}>
           <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+        </svg>
+      );
+    case "home":
+      return (
+        <svg {...common}>
+          <path d="m3 12 9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />
+        </svg>
+      );
+    case "users":
+      return (
+        <svg {...common}>
+          <circle cx="9" cy="7" r="3" />
+          <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+          <circle cx="17" cy="7" r="3" />
+          <path d="M21 21v-2a4 4 0 0 0-3-3.87" />
+        </svg>
+      );
+    case "dollar":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v10M9 9.5c0-1.1.9-2 2-2h2c1.1 0 2 .9 2 2s-.9 2-2 2h-2c-1.1 0-2 .9-2 2s.9 2 2 2h2c1.1 0 2-.9 2-2" />
+        </svg>
+      );
+    case "file":
+      return (
+        <svg {...common}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+          <path d="M14 2v6h6M8 13h8M8 17h8M8 9h2" />
         </svg>
       );
   }

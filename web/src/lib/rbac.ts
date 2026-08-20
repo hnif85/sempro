@@ -43,7 +43,6 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { href: "/athletes", label: "Data Atlet" },
     { href: "/users", label: "Data Pengguna" },
     { href: "/reference", label: "Data Referensi" },
-    { href: "/daftar", label: "Pendaftaran" },
   ],
   admin_event: [
     { href: "/dashboard", label: "Dashboard" },
@@ -51,7 +50,6 @@ export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { href: "/clubs", label: "Club / Sekolah" },
     { href: "/athletes", label: "Data Atlet" },
     { href: "/reference", label: "Data Referensi" },
-    { href: "/daftar", label: "Pendaftaran" },
   ],
   club_manager: [
     { href: "/dashboard", label: "Dashboard" },

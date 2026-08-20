@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon, type IconName } from "./ui";
 
-const ITEMS: { href: string; label: string; icon: IconName }[] = [
+export const PESERTA_NAV: { href: string; label: string; icon: IconName }[] = [
   { href: "/peserta", label: "Beranda", icon: "badge" },
   { href: "/peserta/event", label: "Event", icon: "calendar" },
   { href: "/peserta/hasil", label: "Hasil", icon: "stopwatch" },
@@ -17,8 +17,10 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 rounded-t-[1.8rem] border-t border-slate-200/80 bg-white/95 px-2 pb-[calc(0.6rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_30px_rgba(10,48,103,.1)] backdrop-blur md:hidden">
-      {ITEMS.map((item) => {
-        const active = item.href === "/peserta" ? pathname === "/peserta" : pathname.startsWith(item.href);
+      {PESERTA_NAV.map((item) => {
+        const active =
+          (item.href === "/peserta/event" && pathname.startsWith("/event")) ||
+          (item.href === "/peserta" ? pathname === "/peserta" : pathname.startsWith(item.href));
         return (
           <Link
             key={item.href}
