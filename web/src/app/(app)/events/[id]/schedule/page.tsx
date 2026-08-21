@@ -23,6 +23,13 @@ export default async function SchedulePage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const isAdmin = profile?.role === "super_admin" || profile?.role === "admin_event";
+  if (profile?.role === "official") {
+    const { data: assignment } = await supabase.from("event_officials").select("id").eq("event_id", id).eq("user_id", user.id).maybeSingle();
+    if (!assignment) redirect("/events");
+  }
+
   const { data: event } = await supabase.from("events").select("name").eq("id", id).single();
   if (!event) notFound();
 
@@ -59,7 +66,7 @@ export default async function SchedulePage({
         </p>
       )}
 
-      {(items ?? []).length === 0 && (
+      {(items ?? []).length === 0 && isAdmin && (
         <form action={generateSchedule} className="rounded-xl border border-dashed border-zinc-300 p-8 text-center">
           <input type="hidden" name="event_id" value={id} />
           <p className="mb-4 text-zinc-500">
@@ -74,7 +81,7 @@ export default async function SchedulePage({
         </form>
       )}
 
-      <form action={createScheduleItem} className="rounded-xl border border-zinc-200 bg-white p-6">
+      {isAdmin && <form action={createScheduleItem} className="rounded-xl border border-zinc-200 bg-white p-6">
         <input type="hidden" name="event_id" value={id} />
         <h2 className="mb-4 text-base font-semibold">Tambah Acara</h2>
         <div className="flex gap-3">
@@ -113,7 +120,7 @@ export default async function SchedulePage({
             </button>
           </div>
         </div>
-      </form>
+      </form>}
 
       <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
         <table className="w-full text-sm">
@@ -143,7 +150,7 @@ export default async function SchedulePage({
                       Ubah
                     </summary>
                     <div className="absolute right-0 z-10 mt-1 w-72 rounded-lg border border-zinc-200 bg-white p-4 shadow-lg">
-                      <form action={updateScheduleItem} className="space-y-3">
+                      {isAdmin && <form action={updateScheduleItem} className="space-y-3">
                         <input type="hidden" name="id" value={item.id} />
                         <input type="hidden" name="event_id" value={id} />
                         <input
@@ -169,7 +176,7 @@ export default async function SchedulePage({
                         >
                           Simpan
                         </button>
-                      </form>
+                      </form>}
                     </div>
                   </details>
                   <form action={deleteScheduleItem} className="inline">

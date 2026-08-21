@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireTechnicalEventAccess } from "@/lib/event-access";
 
 function timeToSeconds(t: string): number | null {
   if (!t) return null;
@@ -18,7 +18,6 @@ function timeToSeconds(t: string): number | null {
 }
 
 export async function saveResults(formData: FormData) {
-  const supabase = await createClient();
   const eventId = String(formData.get("event_id") ?? "");
   const heatId = String(formData.get("heat_id") ?? "");
   const entries = JSON.parse(String(formData.get("entries") ?? "[]")) as {
@@ -26,6 +25,7 @@ export async function saveResults(formData: FormData) {
     result_time: string;
     status: string;
   }[];
+  const { supabase } = await requireTechnicalEventAccess(eventId);
 
   const { data: heat } = await supabase
     .from("heats")
@@ -102,10 +102,10 @@ export async function saveResults(formData: FormData) {
 }
 
 export async function updateEntryStatus(formData: FormData) {
-  const supabase = await createClient();
   const eventId = String(formData.get("event_id") ?? "");
   const id = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "registered");
+  const { supabase } = await requireTechnicalEventAccess(eventId);
 
   await supabase.from("heat_entries").update({ status }).eq("id", id);
   revalidatePath(`/events/${eventId}/results`);

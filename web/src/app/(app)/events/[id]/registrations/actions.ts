@@ -2,15 +2,15 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireEventManager } from "@/lib/event-access";
 
 export async function createRegistration(formData: FormData) {
-  const supabase = await createClient();
   const eventId = String(formData.get("event_id") ?? "");
   const athleteId = String(formData.get("athlete_id") ?? "");
   const eventNumberId = String(formData.get("event_number_id") ?? "");
   const seedTime = String(formData.get("seed_time") ?? "") || null;
+  const { supabase } = await requireEventManager(eventId);
 
   const {
     data: { user },
@@ -90,13 +90,9 @@ export async function createRegistration(formData: FormData) {
 }
 
 export async function finalizeRegistrations(formData: FormData) {
-  const supabase = await createClient();
   const eventId = String(formData.get("event_id") ?? "");
   const ids = JSON.parse(String(formData.get("ids") ?? "[]")) as string[];
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { user } = await requireEventManager(eventId);
 
   const admin = await createAdminClient();
   const { data: profile } = await admin.from("profiles").select("role").eq("id", user.id).single();
@@ -170,9 +166,9 @@ export async function finalizeRegistrations(formData: FormData) {
 }
 
 export async function deleteRegistration(formData: FormData) {
-  const supabase = await createClient();
   const eventId = String(formData.get("event_id") ?? "");
   const id = String(formData.get("id") ?? "");
+  const { supabase } = await requireEventManager(eventId);
   await supabase.from("registrations").delete().eq("id", id);
   revalidatePath(`/events/${eventId}/registrations`);
   redirect(`/events/${eventId}/registrations`);

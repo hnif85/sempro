@@ -75,10 +75,14 @@ export default async function DashboardPage() {
   const canSeeBilling = canManageBilling(profile?.role);
   const clubId = profile?.club_id ?? "00000000-0000-0000-0000-000000000000";
 
-  const { data: events } = await supabase
+  let eventsQuery = supabase
     .from("events")
     .select("id, name, status, start_date, end_date, location")
     .order("start_date", { ascending: true });
+  if (profile?.role === "admin_event") {
+    eventsQuery = eventsQuery.eq("created_by", user.id);
+  }
+  const { data: events } = await eventsQuery;
 
   if (!isAdmin) {
     const [{ count: athleteCount }, { count: registrationCount }, { count: numberCount }] = await Promise.all([
@@ -257,25 +261,79 @@ export default async function DashboardPage() {
     );
   }
 
-  const [{ count: clubCount }, { count: athleteCount }, { count: numberCount }, { count: heatCount }, { count: goldCount }, { count: silverCount }, { count: bronzeCount }, { count: userCount }] = await Promise.all([
-    supabase.from("clubs").select("*", { count: "exact", head: true }),
-    supabase.from("athletes").select("*", { count: "exact", head: true }),
-    supabase.from("event_numbers").select("*", { count: "exact", head: true }),
-    supabase.from("heats").select("*", { count: "exact", head: true }),
-    supabase.from("heat_entries").select("*", { count: "exact", head: true }).eq("place", 1).neq("status", "dns"),
-    supabase.from("heat_entries").select("*", { count: "exact", head: true }).eq("place", 2).neq("status", "dns"),
-    supabase.from("heat_entries").select("*", { count: "exact", head: true }).eq("place", 3).neq("status", "dns"),
-    supabase.from("profiles").select("*", { count: "exact", head: true }),
-  ]);
+  const eventList = events ?? [];
+  let clubCount = 0;
+  let athleteCount = 0;
+  let numberCount = 0;
+  let heatCount = 0;
+  let goldCount = 0;
+  let silverCount = 0;
+  let bronzeCount = 0;
+  let userCount = 0;
+  let invoices: { status: string; total: number }[] = [];
 
-  const { data: invoices } = await supabase.from("invoices").select("status, total");
+  if (profile?.role === "admin_event") {
+    const eventIds = eventList.map((event) => event.id);
+    const [{ data: registrations }, { count: scopedNumberCount }, { count: scopedHeatCount }, { data: scopedInvoices }, { count: scopedUsers }] = await Promise.all([
+      eventIds.length
+        ? supabase.from("registrations").select("id, club_id, athlete_id").in("event_id", eventIds)
+        : Promise.resolve({ data: [] as { id: string; club_id: string | null; athlete_id: string }[] }),
+      eventIds.length
+        ? supabase.from("event_numbers").select("*", { count: "exact", head: true }).in("event_id", eventIds)
+        : Promise.resolve({ count: 0 }),
+      eventIds.length
+        ? supabase.from("schedule_items").select("id", { count: "exact", head: true }).in("event_id", eventIds)
+        : Promise.resolve({ count: 0 }),
+      eventIds.length
+        ? supabase.from("invoices").select("status, total").in("event_id", eventIds)
+        : Promise.resolve({ data: [] as { status: string; total: number }[] }),
+      eventIds.length
+        ? supabase.from("registrations").select("athlete_id", { count: "exact", head: true }).in("event_id", eventIds)
+        : Promise.resolve({ count: 0 }),
+    ]);
+    const registrationRows = registrations ?? [];
+    const registrationIds = registrationRows.map((registration) => registration.id);
+    const { data: medalEntries } = registrationIds.length
+      ? await supabase.from("heat_entries").select("place, status").in("registration_id", registrationIds)
+      : { data: [] as { place: number | null; status: string | null }[] };
+    clubCount = new Set(registrationRows.map((registration) => registration.club_id).filter(Boolean)).size;
+    athleteCount = new Set(registrationRows.map((registration) => registration.athlete_id)).size;
+    numberCount = scopedNumberCount ?? 0;
+    heatCount = scopedHeatCount ?? 0;
+    goldCount = (medalEntries ?? []).filter((entry) => entry.place === 1 && entry.status !== "dns").length;
+    silverCount = (medalEntries ?? []).filter((entry) => entry.place === 2 && entry.status !== "dns").length;
+    bronzeCount = (medalEntries ?? []).filter((entry) => entry.place === 3 && entry.status !== "dns").length;
+    userCount = scopedUsers ?? 0;
+    invoices = scopedInvoices ?? [];
+  } else {
+    const [{ count: allClubCount }, { count: allAthleteCount }, { count: allNumberCount }, { count: allHeatCount }, { count: allGoldCount }, { count: allSilverCount }, { count: allBronzeCount }, { count: allUserCount }, { data: allInvoices }] = await Promise.all([
+      supabase.from("clubs").select("*", { count: "exact", head: true }),
+      supabase.from("athletes").select("*", { count: "exact", head: true }),
+      supabase.from("event_numbers").select("*", { count: "exact", head: true }),
+      supabase.from("heats").select("*", { count: "exact", head: true }),
+      supabase.from("heat_entries").select("*", { count: "exact", head: true }).eq("place", 1).neq("status", "dns"),
+      supabase.from("heat_entries").select("*", { count: "exact", head: true }).eq("place", 2).neq("status", "dns"),
+      supabase.from("heat_entries").select("*", { count: "exact", head: true }).eq("place", 3).neq("status", "dns"),
+      supabase.from("profiles").select("*", { count: "exact", head: true }),
+      supabase.from("invoices").select("status, total"),
+    ]);
+    clubCount = allClubCount ?? 0;
+    athleteCount = allAthleteCount ?? 0;
+    numberCount = allNumberCount ?? 0;
+    heatCount = allHeatCount ?? 0;
+    goldCount = allGoldCount ?? 0;
+    silverCount = allSilverCount ?? 0;
+    bronzeCount = allBronzeCount ?? 0;
+    userCount = allUserCount ?? 0;
+    invoices = allInvoices ?? [];
+  }
+
   const paid = (invoices ?? []).filter((i) => i.status === "paid");
   const outstanding = (invoices ?? []).filter((i) => i.status === "awaiting_payment" || i.status === "draft");
   const totalTagihan = (invoices ?? []).filter((i) => i.status !== "cancelled").reduce((s, i) => s + Number(i.total), 0);
   const totalPaid = paid.reduce((s, i) => s + Number(i.total), 0);
   const totalOutstanding = outstanding.reduce((s, i) => s + Number(i.total), 0);
 
-  const eventList = events ?? [];
   const activeEvents = eventList.filter((e) => ACTIVE_EVENT_STATUSES.includes(e.status)).slice(0, 3);
   const activeEventCount = eventList.filter((e) => ACTIVE_EVENT_STATUSES.includes(e.status)).length;
 
@@ -419,7 +477,7 @@ export default async function DashboardPage() {
           </div>
           <div className="space-y-3 p-5">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-zinc-500">Total Pengguna</span>
+              <span className="text-sm text-zinc-500">{profile?.role === "admin_event" ? "Total Registrasi" : "Total Pengguna"}</span>
               <span className="text-lg font-bold">{userCount ?? 0}</span>
             </div>
             <div className="flex items-center justify-between">

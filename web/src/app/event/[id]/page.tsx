@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AppShell } from "@/components/AppShell";
-import { BottomNav } from "@/components/peserta/bottom-nav";
 
 type PdfDocument = { id: string; url: string; caption: string | null; file_name: string | null; viewUrl: string };
 
@@ -106,10 +105,7 @@ export default async function PublicEventPage({ params }: { params: Promise<{ id
 
   if (user) {
     return (
-      <AppShell
-        fullName={profile?.full_name ?? "User"}
-        bottomNav={profile?.role === "peserta" ? <BottomNav /> : undefined}
-      >
+      <AppShell fullName={profile?.full_name ?? "User"} role={profile?.role ?? null}>
         {content}
       </AppShell>
     );

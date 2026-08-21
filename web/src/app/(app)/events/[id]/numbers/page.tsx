@@ -25,6 +25,10 @@ export default async function EventNumbersPage({
     .eq("id", user.id)
     .single();
   const isAdmin = profile?.role === "super_admin" || profile?.role === "admin_event";
+  if (profile?.role === "official") {
+    const { data: assignment } = await supabase.from("event_officials").select("id").eq("event_id", id).eq("user_id", user.id).maybeSingle();
+    if (!assignment) redirect("/events");
+  }
 
   const { data: event } = await supabase.from("events").select("name").eq("id", id).single();
   if (!event) notFound();

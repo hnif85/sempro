@@ -22,6 +22,11 @@ export default async function EventDetailLayout({
     .eq("id", user.id)
     .single();
   const isAdmin = profile?.role === "super_admin" || profile?.role === "admin_event";
+  const { data: officialAssignment } = profile?.role === "official"
+    ? await supabase.from("event_officials").select("id").eq("event_id", id).eq("user_id", user.id).maybeSingle()
+    : { data: null };
+  const isOfficial = profile?.role === "official" && Boolean(officialAssignment);
+  if (profile?.role === "official" && !isOfficial) redirect("/events");
 
   const { count: numberCount } = await supabase
     .from("event_numbers")
@@ -38,6 +43,7 @@ export default async function EventDetailLayout({
       <EventTabs
         eventId={id}
         isAdmin={isAdmin}
+        isOfficial={isOfficial}
         counts={{ numbers: numberCount, registrations: regCount }}
       />
       {children}

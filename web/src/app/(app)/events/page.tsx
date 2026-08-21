@@ -23,6 +23,10 @@ export default async function EventsPage() {
     .select("*, event_numbers(count), registrations(count)")
     .order("created_at", { ascending: false });
 
+  if (profile?.role === "admin_event") {
+    eventsQuery = eventsQuery.eq("created_by", user.id);
+  }
+
   if (isOfficial) {
     const { data: assigned } = await supabase
       .from("event_officials")

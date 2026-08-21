@@ -15,6 +15,9 @@ export default async function DocsPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const { data: accessProfile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (accessProfile?.role === "official") redirect(`/events/${id}`);
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")

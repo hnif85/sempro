@@ -2,12 +2,12 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireEventManager, requireTechnicalEventAccess } from "@/lib/event-access";
 
 export async function generateHeats(formData: FormData) {
-  const supabase = await createClient();
   const eventId = String(formData.get("event_id") ?? "");
   const scheduleItemId = String(formData.get("schedule_item_id") ?? "");
+  const { supabase } = await requireEventManager(eventId);
 
   const { data: event } = await supabase
     .from("events")
@@ -75,9 +75,9 @@ export async function generateHeats(formData: FormData) {
 }
 
 export async function finalizeDNS(formData: FormData) {
-  const supabase = await createClient();
   const eventId = String(formData.get("event_id") ?? "");
   const ids = JSON.parse(String(formData.get("ids") ?? "[]")) as string[];
+  const { supabase } = await requireTechnicalEventAccess(eventId);
 
   if (ids.length > 0) {
     await supabase.from("heats").update({ status: "dnt" }).in("id", ids);
@@ -88,9 +88,9 @@ export async function finalizeDNS(formData: FormData) {
 }
 
 export async function addHeat(formData: FormData) {
-  const supabase = await createClient();
   const eventId = String(formData.get("event_id") ?? "");
   const scheduleItemId = String(formData.get("schedule_item_id") ?? "");
+  const { supabase } = await requireEventManager(eventId);
 
   const { data: lastHeat } = await supabase
     .from("heats")
@@ -113,9 +113,9 @@ export async function addHeat(formData: FormData) {
 }
 
 export async function deleteHeat(formData: FormData) {
-  const supabase = await createClient();
   const eventId = String(formData.get("event_id") ?? "");
   const id = String(formData.get("id") ?? "");
+  const { supabase } = await requireEventManager(eventId);
   await supabase.from("heats").delete().eq("id", id);
   revalidatePath(`/events/${eventId}/heats`);
   redirect(`/events/${eventId}/heats`);

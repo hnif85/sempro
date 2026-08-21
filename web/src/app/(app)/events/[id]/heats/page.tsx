@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { generateHeats, addHeat } from "./actions";
 import DNTButton from "./dnt-button";
+import { getEventRole } from "@/lib/event-access";
 
 type HeatEntry = {
   id: string;
@@ -39,6 +40,10 @@ export default async function HeatsPage({
 
   const { data: event } = await supabase.from("events").select("name, lanes_count").eq("id", id).single();
   if (!event) notFound();
+  const { role, officialAssigned } = await getEventRole(id);
+  const isAdmin = role === "super_admin" || role === "admin_event";
+  const isOfficial = role === "official" && officialAssigned;
+  if (!isAdmin && !isOfficial) redirect("/events");
 
   const { data: scheduleItems } = await supabase
     .from("schedule_items")
@@ -104,7 +109,7 @@ export default async function HeatsPage({
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  {itemHeats.length === 0 && (
+                  {itemHeats.length === 0 && isAdmin && (
                     <form action={generateHeats}>
                       <input type="hidden" name="event_id" value={id} />
                       <input type="hidden" name="schedule_item_id" value={item.id} />
@@ -113,7 +118,7 @@ export default async function HeatsPage({
                       </button>
                     </form>
                   )}
-                  {itemHeats.length > 0 && (
+                  {itemHeats.length > 0 && isAdmin && (
                     <form action={addHeat}>
                       <input type="hidden" name="event_id" value={id} />
                       <input type="hidden" name="schedule_item_id" value={item.id} />

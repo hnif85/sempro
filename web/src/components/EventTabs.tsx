@@ -6,15 +6,17 @@ import { usePathname } from "next/navigation";
 export default function EventTabs({
   eventId,
   isAdmin = false,
+  isOfficial = false,
   counts,
 }: {
   eventId: string;
   isAdmin?: boolean;
+  isOfficial?: boolean;
   counts?: { numbers?: number | null; registrations?: number | null };
 }) {
   const pathname = usePathname();
 
-  const tabs = [
+  const adminTabs = [
     ...(isAdmin
       ? [{ href: `/events/${eventId}/edit`, label: "Edit Event" }]
       : []),
@@ -30,6 +32,9 @@ export default function EventTabs({
     { href: `/events/${eventId}/print/book`, label: "Cetak Buku Acara" },
     { href: `/events/${eventId}/print/results`, label: "Cetak Hasil" },
   ];
+  const tabs = isOfficial
+    ? adminTabs.filter((tab) => ["Nomor Lomba", "Registrasi", "Susunan Acara", "Heat & Seeding", "Hasil & Ranking", "Cetak Hasil"].includes(tab.label))
+    : adminTabs;
 
   return (
     <div className="flex flex-wrap gap-2 border-b border-zinc-200 pb-px">

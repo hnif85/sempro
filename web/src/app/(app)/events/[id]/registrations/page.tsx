@@ -25,6 +25,10 @@ export default async function RegistrationsPage({
     .eq("id", user.id)
     .single();
   const isAdmin = profile?.role === "super_admin" || profile?.role === "admin_event";
+  if (profile?.role === "official") {
+    const { data: assignment } = await supabase.from("event_officials").select("id").eq("event_id", id).eq("user_id", user.id).maybeSingle();
+    if (!assignment) redirect("/events");
+  }
 
   const { data: event } = await supabase.from("events").select("name").eq("id", id).single();
   if (!event) notFound();
@@ -63,6 +67,9 @@ export default async function RegistrationsPage({
 
   const draftIds = (regs ?? []).filter((r) => r.status === "draft").map((r) => r.id);
 
+  const clubName = (club: { name: string | null } | { name: string | null }[] | null) =>
+    (Array.isArray(club) ? club[0]?.name : club?.name) ?? "-";
+
   return (
     <div className="space-y-6">
       <div>
@@ -79,7 +86,7 @@ export default async function RegistrationsPage({
         </p>
       )}
 
-      <form action={createRegistration} className="rounded-xl border border-zinc-200 bg-white p-6">
+      {isAdmin && <form action={createRegistration} className="rounded-xl border border-zinc-200 bg-white p-6">
         <input type="hidden" name="event_id" value={id} />
         <h2 className="mb-4 text-base font-semibold">Registrasi Baru</h2>
         <div className="grid gap-4 md:grid-cols-4">
@@ -109,7 +116,7 @@ export default async function RegistrationsPage({
               <option value="">Pilih atlet…</option>
               {(athletes ?? []).map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name} — {a.clubs?.name ?? "Tanpa club"}
+                   {a.name} — {clubName(a.clubs) === "-" ? "Tanpa club" : clubName(a.clubs)}
                 </option>
               ))}
             </select>
@@ -147,11 +154,11 @@ export default async function RegistrationsPage({
             </button>
           </div>
         </div>
-      </form>
+      </form>}
 
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold">Daftar Pendaftaran ({regs?.length ?? 0})</h2>
-        <FinalizeButton ids={draftIds} eventId={id} />
+        {isAdmin && <FinalizeButton ids={draftIds} eventId={id} />}
       </div>
 
       <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
@@ -163,14 +170,14 @@ export default async function RegistrationsPage({
               <th className="px-4 py-3 font-medium">Nomor</th>
               <th className="px-4 py-3 font-medium">Biaya</th>
               <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 text-right">Aksi</th>
+              {isAdmin && <th className="px-4 py-3 text-right">Aksi</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {(regs ?? []).map((r) => (
               <tr key={r.id} className="hover:bg-zinc-50">
                 <td className="px-4 py-3 font-medium">{r.athletes?.name ?? "-"}</td>
-                <td className="px-4 py-3">{r.clubs?.name ?? "-"}</td>
+                <td className="px-4 py-3">{clubName(r.clubs)}</td>
                 <td className="px-4 py-3">{r.event_numbers?.name ?? "-"}</td>
                 <td className="px-4 py-3">
                   {Number(r.event_numbers?.fee ?? 0) > 0
@@ -182,18 +189,18 @@ export default async function RegistrationsPage({
                     {r.status}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-right">
+                {isAdmin && <td className="px-4 py-3 text-right">
                   <form action={deleteRegistration} className="inline">
                     <input type="hidden" name="id" value={r.id} />
                     <input type="hidden" name="event_id" value={id} />
                     <button className="text-xs text-red-600 hover:underline">Hapus</button>
                   </form>
-                </td>
+                </td>}
               </tr>
             ))}
             {(regs ?? []).length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-zinc-400">
+                <td colSpan={isAdmin ? 6 : 5} className="px-4 py-8 text-center text-zinc-400">
                   Belum ada pendaftaran.
                 </td>
               </tr>

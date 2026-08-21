@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { login } from "@/app/auth/actions";
+import DemoAccounts from "./demo-accounts";
 
 export default async function LoginPage({
   searchParams,
@@ -67,6 +68,8 @@ export default async function LoginPage({
             Daftar club / peserta
           </Link>
         </p>
+
+        <DemoAccounts />
       </div>
     </div>
   );
