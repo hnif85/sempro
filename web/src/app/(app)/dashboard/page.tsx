@@ -480,18 +480,18 @@ export default async function DashboardPage() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">Perolehan Medali</h2>
           </div>
           <div className="grid grid-cols-3 gap-4 p-5">
-            <div className="text-center">
-              <MedalIcon type="gold" />
+            <div className="flex flex-col items-center">
+              <div className="flex h-10 w-10 items-center justify-center"><MedalIcon type="gold" /></div>
               <p className="mt-2 text-xs font-medium text-zinc-500">EMAS</p>
               <p className="text-2xl font-bold text-yellow-600">{goldCount ?? 0}</p>
             </div>
-            <div className="text-center">
-              <MedalIcon type="silver" />
+            <div className="flex flex-col items-center">
+              <div className="flex h-10 w-10 items-center justify-center"><MedalIcon type="silver" /></div>
               <p className="mt-2 text-xs font-medium text-zinc-500">PERAK</p>
               <p className="text-2xl font-bold text-zinc-600">{silverCount ?? 0}</p>
             </div>
-            <div className="text-center">
-              <MedalIcon type="bronze" />
+            <div className="flex flex-col items-center">
+              <div className="flex h-10 w-10 items-center justify-center"><MedalIcon type="bronze" /></div>
               <p className="mt-2 text-xs font-medium text-zinc-500">PERUNGGU</p>
               <p className="text-2xl font-bold text-orange-500">{bronzeCount ?? 0}</p>
             </div>
