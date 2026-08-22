@@ -55,6 +55,38 @@ function MedalIcon({ type }: { type: "gold" | "silver" | "bronze" }) {
 
 const rupiah = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
 
+async function getMedalCounts(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  eventIds: string[] | null
+): Promise<{ gold: number; silver: number; bronze: number }> {
+  let eventsQuery = supabase.from("events").select("id").in("status", ["running", "finished"]);
+  if (eventIds) eventsQuery = eventsQuery.in("id", eventIds);
+  const { data: scoredEvents } = await eventsQuery;
+  const scoredEventIds = (scoredEvents ?? []).map((e) => e.id);
+  if (scoredEventIds.length === 0) return { gold: 0, silver: 0, bronze: 0 };
+
+  const { data: scheduleItems } = await supabase
+    .from("schedule_items")
+    .select("id")
+    .in("event_id", scoredEventIds);
+  const scheduleItemIds = (scheduleItems ?? []).map((s) => s.id);
+  if (scheduleItemIds.length === 0) return { gold: 0, silver: 0, bronze: 0 };
+
+  const { data: heats } = await supabase
+    .from("heats")
+    .select("id")
+    .in("schedule_item_id", scheduleItemIds);
+  const heatIds = (heats ?? []).map((h) => h.id);
+  if (heatIds.length === 0) return { gold: 0, silver: 0, bronze: 0 };
+
+  const [{ count: gold }, { count: silver }, { count: bronze }] = await Promise.all([
+    supabase.from("heat_entries").select("*", { count: "exact", head: true }).in("heat_id", heatIds).eq("place", 1).neq("status", "dns"),
+    supabase.from("heat_entries").select("*", { count: "exact", head: true }).in("heat_id", heatIds).eq("place", 2).neq("status", "dns"),
+    supabase.from("heat_entries").select("*", { count: "exact", head: true }).in("heat_id", heatIds).eq("place", 3).neq("status", "dns"),
+  ]);
+  return { gold: gold ?? 0, silver: silver ?? 0, bronze: bronze ?? 0 };
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
@@ -292,38 +324,33 @@ export default async function DashboardPage() {
         : Promise.resolve({ count: 0 }),
     ]);
     const registrationRows = registrations ?? [];
-    const registrationIds = registrationRows.map((registration) => registration.id);
-    const { data: medalEntries } = registrationIds.length
-      ? await supabase.from("heat_entries").select("place, status").in("registration_id", registrationIds)
-      : { data: [] as { place: number | null; status: string | null }[] };
+    const medalCounts = await getMedalCounts(supabase, eventIds.length ? eventIds : null);
     clubCount = new Set(registrationRows.map((registration) => registration.club_id).filter(Boolean)).size;
     athleteCount = new Set(registrationRows.map((registration) => registration.athlete_id)).size;
     numberCount = scopedNumberCount ?? 0;
     heatCount = scopedHeatCount ?? 0;
-    goldCount = (medalEntries ?? []).filter((entry) => entry.place === 1 && entry.status !== "dns").length;
-    silverCount = (medalEntries ?? []).filter((entry) => entry.place === 2 && entry.status !== "dns").length;
-    bronzeCount = (medalEntries ?? []).filter((entry) => entry.place === 3 && entry.status !== "dns").length;
+    goldCount = medalCounts.gold;
+    silverCount = medalCounts.silver;
+    bronzeCount = medalCounts.bronze;
     userCount = scopedUsers ?? 0;
     invoices = scopedInvoices ?? [];
   } else {
-    const [{ count: allClubCount }, { count: allAthleteCount }, { count: allNumberCount }, { count: allHeatCount }, { count: allGoldCount }, { count: allSilverCount }, { count: allBronzeCount }, { count: allUserCount }, { data: allInvoices }] = await Promise.all([
+    const [{ count: allClubCount }, { count: allAthleteCount }, { count: allNumberCount }, { count: allHeatCount }, { count: allUserCount }, { data: allInvoices }] = await Promise.all([
       supabase.from("clubs").select("*", { count: "exact", head: true }),
       supabase.from("athletes").select("*", { count: "exact", head: true }),
       supabase.from("event_numbers").select("*", { count: "exact", head: true }),
       supabase.from("heats").select("*", { count: "exact", head: true }),
-      supabase.from("heat_entries").select("*", { count: "exact", head: true }).eq("place", 1).neq("status", "dns"),
-      supabase.from("heat_entries").select("*", { count: "exact", head: true }).eq("place", 2).neq("status", "dns"),
-      supabase.from("heat_entries").select("*", { count: "exact", head: true }).eq("place", 3).neq("status", "dns"),
       supabase.from("profiles").select("*", { count: "exact", head: true }),
       supabase.from("invoices").select("status, total"),
     ]);
+    const medalCounts = await getMedalCounts(supabase, null);
     clubCount = allClubCount ?? 0;
     athleteCount = allAthleteCount ?? 0;
     numberCount = allNumberCount ?? 0;
     heatCount = allHeatCount ?? 0;
-    goldCount = allGoldCount ?? 0;
-    silverCount = allSilverCount ?? 0;
-    bronzeCount = allBronzeCount ?? 0;
+    goldCount = medalCounts.gold;
+    silverCount = medalCounts.silver;
+    bronzeCount = medalCounts.bronze;
     userCount = allUserCount ?? 0;
     invoices = allInvoices ?? [];
   }
